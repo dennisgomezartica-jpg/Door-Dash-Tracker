@@ -1,4 +1,3 @@
-import "./index.css"
 import { useState, useEffect, useRef, useMemo } from "react";
 
 const DEFAULT_TAX_RATE = 0.153;
@@ -24,10 +23,10 @@ const DEFAULT_SETTINGS = { taxRate:DEFAULT_TAX_RATE, mileageRate:DEFAULT_MILEAGE
 const STORAGE_KEY = "doordash_sessions_v3";
 const SETTINGS_KEY = "doordash_settings_v1";
 
-async function loadSessions() { try { const r = localStorage.getItem(STORAGE_KEY); if (r) return JSON.parse(r); } catch {} return null; }
-async function saveSessions(s) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} }
-async function loadSettings() { try { const r = localStorage.getItem(SETTINGS_KEY); if (r) return { ...DEFAULT_SETTINGS, ...JSON.parse(r) }; } catch {} return DEFAULT_SETTINGS; }
-async function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
+async function loadSessions() { try { const r = await window.storage.get(STORAGE_KEY); if (r?.value) return JSON.parse(r.value); } catch {} return null; }
+async function saveSessions(s) { try { await window.storage.set(STORAGE_KEY, JSON.stringify(s)); } catch {} }
+async function loadSettings() { try { const r = await window.storage.get(SETTINGS_KEY); if (r?.value) return { ...DEFAULT_SETTINGS, ...JSON.parse(r.value) }; } catch {} return DEFAULT_SETTINGS; }
+async function saveSettings(s) { try { await window.storage.set(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
 
 const fmt$ = (n) => "$" + (Number(n)||0).toFixed(2);
 const fmtN = (n, d=1) => (Number(n)||0).toFixed(d);
@@ -98,7 +97,6 @@ const C = {
 };
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');`;
-const API_URL = "https://doordash-api-production.up.railway.app";
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
 function Label({ children, style }) {
@@ -335,7 +333,7 @@ export default function App() {
   async function fetchEvents() {
     setEventsLoading(true); setEventsError("");
     try {
-      const res = await fetch("https://doordash-api-production.up.railway.app/events");
+      const res = await fetch(`${API_URL}/events`);
       const data = await res.json();
       setEvents(data.events || []);
       if (!data.events || data.events.length === 0) {
@@ -733,10 +731,10 @@ export default function App() {
             <SectionTitle>Earnings Impact Guide</SectionTitle>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {[
-                { icon:"🔥🔥🔥", label:"Massive",   desc:"World Cup match — 75K fans + international tourists", color:"#FF3008" },
-                { icon:"🔥🔥",  label:"Very High", desc:"Weekend home game — fans ordering all day",            color:"#F5A623" },
-                { icon:"🔥",    label:"High",      desc:"Weeknight home game — pre/post game rush",             color:"#F5A623" },
-                { icon:"⚡",    label:"Low",        desc:"Away game — minimal local impact",                    color:C.muted  },
+                { icon:"🔥", label:"Massive",   desc:"World Cup — 75K fans + international tourists", color:"#FF3008" },
+                { icon:"🔥", label:"Very High", desc:"Weekend home game — fans ordering all day",     color:"#F5A623" },
+                { icon:"🔥", label:"High",      desc:"Weeknight home game — pre/post game rush",      color:"#F5A623" },
+                { icon:"⚡", label:"Low",        desc:"Away game — minimal local impact",              color:C.muted  },
               ].map(({icon,label,desc,color}) => (
                 <div key={label} style={{ display:"flex", alignItems:"center", gap:10 }}>
                   <span style={{ fontSize:16, width:28 }}>{icon}</span>
@@ -789,7 +787,7 @@ export default function App() {
                           </div>
                           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, color:C.text }}>{e.home}</div>
                           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>vs {e.away}</div>
-                          {e.time && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted, marginTop:2 }}>{e.time}</div>}
+                          <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted, marginTop:2 }}>{d.toLocaleDateString("en-US",{weekday:"long"})}{e.time ? ` · ${e.time}` : ""}</div>
                         </div>
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
