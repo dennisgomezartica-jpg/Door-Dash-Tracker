@@ -429,7 +429,7 @@ export default function App() {
   return (
     <div style={{ background:C.bg, fontFamily:"'DM Sans',sans-serif", maxWidth:420, margin:"0 auto", minHeight:600, paddingBottom:72, position:"relative" }}>
       <style>{fonts}</style>
-      <h2 className="sr-only">DoorDash Earnings Tracker — Newnan, GA</h2>
+      <h2 style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>DoorDash Earnings Tracker — Newnan, GA</h2>
 
       {/* ── DASHBOARD ─────────────────────────────────────────────────────── */}
       {view==="dashboard" && (
