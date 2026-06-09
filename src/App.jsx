@@ -97,7 +97,7 @@ const C = {
   purple:   "#8B6FE8",
 };
 
-const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');`;
+const API_URL = "https://doordash-api-production.up.railway.app;`nconst fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 const API_URL = "https://doordash-api-production.up.railway.app";
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
