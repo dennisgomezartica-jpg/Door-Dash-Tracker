@@ -1,4 +1,3 @@
-import "./index.css"
 import { useState, useEffect, useRef, useMemo } from "react";
 
 const DEFAULT_TAX_RATE = 0.153;
@@ -24,10 +23,10 @@ const DEFAULT_SETTINGS = { taxRate:DEFAULT_TAX_RATE, mileageRate:DEFAULT_MILEAGE
 const STORAGE_KEY = "doordash_sessions_v3";
 const SETTINGS_KEY = "doordash_settings_v1";
 
-async function loadSessions() { try { const r = localStorage.getItem(STORAGE_KEY); if (r) return JSON.parse(r); } catch {} return null; }
-async function saveSessions(s) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} }
-async function loadSettings() { try { const r = localStorage.getItem(SETTINGS_KEY); if (r) return { ...DEFAULT_SETTINGS, ...JSON.parse(r) }; } catch {} return DEFAULT_SETTINGS; }
-async function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
+async function loadSessions() { try { const r = await window.storage.get(STORAGE_KEY); if (r?.value) return JSON.parse(r.value); } catch {} return null; }
+async function saveSessions(s) { try { await window.storage.set(STORAGE_KEY, JSON.stringify(s)); } catch {} }
+async function loadSettings() { try { const r = await window.storage.get(SETTINGS_KEY); if (r?.value) return { ...DEFAULT_SETTINGS, ...JSON.parse(r.value) }; } catch {} return DEFAULT_SETTINGS; }
+async function saveSettings(s) { try { await window.storage.set(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
 
 const fmt$ = (n) => "$" + (Number(n)||0).toFixed(2);
 const fmtN = (n, d=1) => (Number(n)||0).toFixed(d);
@@ -97,7 +96,6 @@ const C = {
   purple:   "#8B6FE8",
 };
 
-const API_URL = "https://doordash-api-production.up.railway.app";
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
@@ -270,6 +268,8 @@ export default function App() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState("");
   const [dragging, setDragging]     = useState(false);
+  const [weather, setWeather] = useState([]);
+  const [weatherLoading, setWeatherLoading] = useState(false);
   const [importMsg, setImportMsg]   = useState("");
   const [lastSaved, setLastSaved]   = useState(null);
   const undoTimer = useRef(null);
@@ -285,6 +285,7 @@ export default function App() {
   }, []);
 
   useEffect(() => { if (sessions !== null) { saveSessions(sessions); setLastSaved(new Date()); } }, [sessions]);
+  useEffect(() => { fetchWeather(); }, []);
   useEffect(() => { if (settingsForm) saveSettings(settingsForm); }, [settingsForm]);
 
   const totals      = useMemo(() => sessions ? computeTotals(sessions, settings.taxRate, settings.mileageRate) : null, [sessions, settings]);
@@ -331,6 +332,39 @@ export default function App() {
   }, [sessions, settings]);
 
   // Teams and events are now fetched from the FastAPI backend
+
+  async function fetchWeather() {
+    setWeatherLoading(true);
+    try {
+      const res = await fetch(
+        "https://api.open-meteo.com/v1/forecast?latitude=33.3807&longitude=-84.7997&daily=temperature_2m_max,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=14"
+      );
+      const data = await res.json();
+      const days = data.daily.time.map((date, i) => ({
+        date,
+        high: Math.round(data.daily.temperature_2m_max[i]),
+        rainChance: data.daily.precipitation_probability_max[i],
+        code: data.daily.weathercode[i],
+      }));
+      setWeather(days);
+    } catch(err) {
+      console.error("Weather fetch failed:", err);
+    }
+    setWeatherLoading(false);
+  }
+
+  function weatherEmoji(code, rainChance) {
+    if (rainChance >= 60) return "🌧";
+    if (rainChance >= 30) return "🌦";
+    if (code >= 95) return "⛈";
+    if (code >= 80) return "🌧";
+    if (code >= 61) return "🌧";
+    if (code >= 51) return "🌦";
+    if (code >= 45) return "🌫";
+    if (code >= 3)  return "☁️";
+    if (code >= 1)  return "⛅";
+    return "☀️";
+  }
 
   async function fetchEvents() {
     setEventsLoading(true); setEventsError("");
@@ -475,6 +509,35 @@ export default function App() {
             <GoalBar label="This Week" current={weekTotals.totalGross} goal={settings.weeklyGoal} />
             <GoalBar label="This Month" current={monthTotals.totalGross} goal={settings.monthlyGoal} />
           </Card>
+
+          {/* Weather */}
+          {weather.length > 0 && (
+            <Card style={{ marginBottom:16 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                <SectionTitle>14-Day Forecast · Newnan GA</SectionTitle>
+                <span style={{ fontSize:10, color:C.muted }}>°F</span>
+              </div>
+              <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4 }}>
+                {weather.map((day, i) => {
+                  const d = new Date(day.date+"T12:00:00");
+                  const dow = d.toLocaleDateString("en-US",{weekday:"short"});
+                  const mon = d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+                  const isRainy = day.rainChance >= 50;
+                  const isToday = i === 0;
+                  return (
+                    <div key={day.date} style={{ flexShrink:0, textAlign:"center", background: isToday ? C.accentDim : isRainy ? "rgba(0,150,255,0.08)" : C.surface2, border:`0.5px solid ${isToday ? C.accent : isRainy ? "rgba(0,150,255,0.2)" : C.border}`, borderRadius:10, padding:"8px 6px", minWidth:48 }}>
+                      <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:9, color: isToday ? C.accent : C.muted, fontWeight: isToday ? 600 : 400, textTransform:"uppercase", letterSpacing:"0.05em" }}>{isToday ? "Today" : dow}</div>
+                      <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:9, color:C.muted, marginBottom:4 }}>{mon}</div>
+                      <div style={{ fontSize:16, marginBottom:4 }}>{weatherEmoji(day.code, day.rainChance)}</div>
+                      <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:600, color:C.text }}>{day.high}°</div>
+                      <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:9, color: isRainy ? "#4A9EFF" : C.muted, marginTop:2 }}>{day.rainChance}%</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize:10, color:C.muted, marginTop:8 }}>🌧 = 50%+ rain chance — good for orders!</div>
+            </Card>
+          )}
 
           {/* This week stats */}
           <SectionTitle>This Week</SectionTitle>
