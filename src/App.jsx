@@ -1,3 +1,4 @@
+import "./index.css"
 import { useState, useEffect, useRef, useMemo } from "react";
 
 const DEFAULT_TAX_RATE = 0.153;
@@ -23,10 +24,10 @@ const DEFAULT_SETTINGS = { taxRate:DEFAULT_TAX_RATE, mileageRate:DEFAULT_MILEAGE
 const STORAGE_KEY = "doordash_sessions_v3";
 const SETTINGS_KEY = "doordash_settings_v1";
 
-async function loadSessions() { try { const r = await window.storage.get(STORAGE_KEY); if (r?.value) return JSON.parse(r.value); } catch {} return null; }
-async function saveSessions(s) { try { await window.storage.set(STORAGE_KEY, JSON.stringify(s)); } catch {} }
-async function loadSettings() { try { const r = await window.storage.get(SETTINGS_KEY); if (r?.value) return { ...DEFAULT_SETTINGS, ...JSON.parse(r.value) }; } catch {} return DEFAULT_SETTINGS; }
-async function saveSettings(s) { try { await window.storage.set(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
+async function loadSessions() { try { const r = localStorage.getItem(STORAGE_KEY); if (r) return JSON.parse(r); } catch {} return null; }
+async function saveSessions(s) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} }
+async function loadSettings() { try { const r = localStorage.getItem(SETTINGS_KEY); if (r) return { ...DEFAULT_SETTINGS, ...JSON.parse(r) }; } catch {} return DEFAULT_SETTINGS; }
+async function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
 
 const fmt$ = (n) => "$" + (Number(n)||0).toFixed(2);
 const fmtN = (n, d=1) => (Number(n)||0).toFixed(d);
@@ -78,27 +79,16 @@ function exportExcel(sessions, totals, settings) {
   const a = document.createElement("a"); a.href=uri; a.download="doordash_tracker.xls"; a.click();
 }
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  bg:       "#0A0F1E",
-  surface:  "#111827",
-  surface2: "#1C2537",
-  border:   "rgba(255,255,255,0.08)",
-  border2:  "rgba(255,255,255,0.14)",
-  text:     "#F0F4FF",
-  muted:    "#8896B3",
-  accent:   "#FF3008",
-  accentDim:"rgba(255,48,8,0.15)",
-  green:    "#00C896",
-  greenDim: "rgba(0,200,150,0.12)",
-  amber:    "#F5A623",
-  amberDim: "rgba(245,166,35,0.12)",
-  purple:   "#8B6FE8",
+  bg:"#0A0F1E", surface:"#111827", surface2:"#1C2537",
+  border:"rgba(255,255,255,0.08)", border2:"rgba(255,255,255,0.14)",
+  text:"#F0F4FF", muted:"#8896B3", accent:"#FF3008", accentDim:"rgba(255,48,8,0.15)",
+  green:"#00C896", greenDim:"rgba(0,200,150,0.12)", amber:"#F5A623", amberDim:"rgba(245,166,35,0.12)", purple:"#8B6FE8",
 };
 
+const API_URL = "https://doordash-api-production.up.railway.app";
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
-// ─── Shared UI atoms ──────────────────────────────────────────────────────────
 function Label({ children, style }) {
   return <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:C.muted, ...style }}>{children}</div>;
 }
@@ -254,7 +244,6 @@ const inputStyle = {
   color:C.text, outline:"none",
 };
 
-// ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [sessions, setSessions]     = useState(null);
   const [settings, setSettings]     = useState(DEFAULT_SETTINGS);
@@ -268,8 +257,7 @@ export default function App() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState("");
   const [dragging, setDragging]     = useState(false);
-  const [weather, setWeather] = useState([]);
-  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weather, setWeather]       = useState([]);
   const [importMsg, setImportMsg]   = useState("");
   const [lastSaved, setLastSaved]   = useState(null);
   const undoTimer = useRef(null);
@@ -331,34 +319,23 @@ export default function App() {
     return { annualGross:annGross, annualNet:annGross-tax, basedOn:recent.length };
   }, [sessions, settings]);
 
-  // Teams and events are now fetched from the FastAPI backend
-
   async function fetchWeather() {
-    setWeatherLoading(true);
     try {
-      const res = await fetch(
-        "https://api.open-meteo.com/v1/forecast?latitude=33.3807&longitude=-84.7997&daily=temperature_2m_max,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=14"
-      );
+      const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=33.3807&longitude=-84.7997&daily=temperature_2m_max,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=14");
       const data = await res.json();
-      const days = data.daily.time.map((date, i) => ({
-        date,
-        high: Math.round(data.daily.temperature_2m_max[i]),
+      setWeather(data.daily.time.map((date, i) => ({
+        date, high: Math.round(data.daily.temperature_2m_max[i]),
         rainChance: data.daily.precipitation_probability_max[i],
         code: data.daily.weathercode[i],
-      }));
-      setWeather(days);
-    } catch(err) {
-      console.error("Weather fetch failed:", err);
-    }
-    setWeatherLoading(false);
+      })));
+    } catch(err) { console.error("Weather fetch failed:", err); }
   }
 
   function weatherEmoji(code, rainChance) {
     if (rainChance >= 60) return "🌧";
     if (rainChance >= 30) return "🌦";
     if (code >= 95) return "⛈";
-    if (code >= 80) return "🌧";
-    if (code >= 61) return "🌧";
+    if (code >= 80 || code >= 61) return "🌧";
     if (code >= 51) return "🌦";
     if (code >= 45) return "🌫";
     if (code >= 3)  return "☁️";
@@ -369,12 +346,10 @@ export default function App() {
   async function fetchEvents() {
     setEventsLoading(true); setEventsError("");
     try {
-      const res = await fetch(`${API_URL}/events`);
+      const res = await fetch("https://doordash-api-production.up.railway.app/events");
       const data = await res.json();
       setEvents(data.events || []);
-      if (!data.events || data.events.length === 0) {
-        setEventsError("No upcoming events found.");
-      }
+      if (!data.events || data.events.length === 0) setEventsError("No upcoming events found.");
     } catch(err) {
       setEventsError("Could not connect to API. Make sure the backend is running.");
     }
@@ -441,7 +416,6 @@ export default function App() {
     </div>
   );
 
-  // ── Shared section header ──────────────────────────────────────────────────
   function PageHeader({ title, right, onBack }) {
     return (
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20, paddingTop:4 }}>
@@ -454,7 +428,6 @@ export default function App() {
     );
   }
 
-  // ── Analytics helpers ──────────────────────────────────────────────────────
   function calcByKey(arr, keyFn, allKeys) {
     const map = {};
     if (allKeys) allKeys.forEach(k => { map[k]={label:k,gross:0,hours:0,count:0}; });
@@ -467,7 +440,6 @@ export default function App() {
       <style>{fonts}</style>
       <h2 style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>DoorDash Earnings Tracker — Newnan, GA</h2>
 
-      {/* ── DASHBOARD ─────────────────────────────────────────────────────── */}
       {view==="dashboard" && (
         <div style={{ padding:"20px 16px 0" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
@@ -488,7 +460,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Hero */}
           <Card style={{ marginBottom:16, textAlign:"center", background:`linear-gradient(135deg, #111827 0%, #1a1030 100%)`, border:`0.5px solid ${C.border}` }}>
             <BigStat label="Net Profit · All Time" value={totals.netProfit} sub={`${fmt$(totals.totalGross)} gross · ${sessions.length} sessions`} />
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:16 }}>
@@ -503,14 +474,12 @@ export default function App() {
             </div>
           </Card>
 
-          {/* Goals */}
           <Card style={{ marginBottom:16 }}>
             <SectionTitle>Goals</SectionTitle>
             <GoalBar label="This Week" current={weekTotals.totalGross} goal={settings.weeklyGoal} />
             <GoalBar label="This Month" current={monthTotals.totalGross} goal={settings.monthlyGoal} />
           </Card>
 
-          {/* Weather */}
           {weather.length > 0 && (
             <Card style={{ marginBottom:16 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
@@ -539,7 +508,6 @@ export default function App() {
             </Card>
           )}
 
-          {/* This week stats */}
           <SectionTitle>This Week</SectionTitle>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:10, marginBottom:16 }}>
             <MiniStat label="Gross" value={fmt$(weekTotals.totalGross)} sub={`${weekSessions.length} sessions`} />
@@ -548,7 +516,6 @@ export default function App() {
             <MiniStat label="Miles" value={fmtN(weekTotals.totalMiles)+"mi"} />
           </div>
 
-          {/* All-time stats */}
           <SectionTitle>All Time</SectionTitle>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:10, marginBottom:16 }}>
             <MiniStat label="Total Gross"        value={fmt$(totals.totalGross)}      sub={`${sessions.length} sessions`} />
@@ -559,7 +526,6 @@ export default function App() {
             <MiniStat label="Total Miles"        value={fmtN(totals.totalMiles)+"mi"} />
           </div>
 
-          {/* Archive upload */}
           <div
             onDragOver={e=>{e.preventDefault();setDragging(true);}}
             onDragLeave={()=>setDragging(false)}
@@ -573,7 +539,6 @@ export default function App() {
           </div>
           {importMsg && <div style={{ fontSize:12, color:C.muted, textAlign:"center", marginBottom:16, padding:"8px 12px", background:C.surface, borderRadius:10 }}>{importMsg}</div>}
 
-          {/* Recent sessions */}
           <SectionTitle>Recent Sessions</SectionTitle>
           {sortedSessions.slice(0,5).map(s => (
             <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"12px 0", borderBottom:`0.5px solid ${C.border}` }}>
@@ -593,16 +558,15 @@ export default function App() {
         </div>
       )}
 
-      {/* ── LOG / EDIT SESSION ─────────────────────────────────────────────── */}
       {view==="add" && (
         <div style={{ padding:"20px 16px 0" }}>
           <PageHeader title={editId?"Edit Session":"Log Session"} onBack={()=>{setEditId(null);setView(editId?"sessions":"dashboard");}} />
           {[
-            {label:"Date",        name:"date",     type:"date"},
-            {label:"Hours",       name:"hours",    type:"number", placeholder:"e.g. 4"},
-            {label:"Miles",       name:"miles",    type:"number", placeholder:"e.g. 75"},
-            {label:"Gross Earnings ($)", name:"gross", type:"number", placeholder:"e.g. 79.24"},
-            {label:"Gas Expenses ($)",   name:"gas",   type:"number", placeholder:"optional"},
+            {label:"Date",name:"date",type:"date"},
+            {label:"Hours",name:"hours",type:"number",placeholder:"e.g. 4"},
+            {label:"Miles",name:"miles",type:"number",placeholder:"e.g. 75"},
+            {label:"Gross Earnings ($)",name:"gross",type:"number",placeholder:"e.g. 79.24"},
+            {label:"Gas Expenses ($)",name:"gas",type:"number",placeholder:"optional"},
             {label:"Car Maintenance ($)",name:"carMaint",type:"number",placeholder:"optional"},
           ].map(({label,name,type,placeholder}) => (
             <FieldRow key={name} label={label}>
@@ -635,7 +599,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── SESSIONS ──────────────────────────────────────────────────────── */}
       {view==="sessions" && (
         <div style={{ padding:"20px 16px 0" }}>
           <PageHeader title={`Sessions (${sessions.length})`} onBack={()=>setView("dashboard")} />
@@ -671,7 +634,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── ANALYTICS ─────────────────────────────────────────────────────── */}
       {view==="analytics" && (
         <div style={{ padding:"20px 16px 0" }}>
           <PageHeader title="Analytics" right={
@@ -681,7 +643,6 @@ export default function App() {
               ))}
             </div>
           } />
-
           {projection && (
             <>
               <SectionTitle>Annual Projection · Last 30 Days</SectionTitle>
@@ -691,7 +652,6 @@ export default function App() {
               </div>
             </>
           )}
-
           {bestWorst && (
             <>
               <SectionTitle>Best vs Worst Session</SectionTitle>
@@ -708,68 +668,57 @@ export default function App() {
               </div>
             </>
           )}
-
           {weeklyTrend.length>1 && (
             <Card style={{ marginBottom:20 }}>
               <SectionTitle>Week-over-Week Gross</SectionTitle>
               <BarChart data={weeklyTrend.map(w=>({...w,label:w.week.slice(5)}))} labelKey="label" valueKey="gross" color={C.purple} label="Gross per week" />
             </Card>
           )}
-
           <Card style={{ marginBottom:16 }}>
             <SectionTitle>By Time Window</SectionTitle>
             <BarChart data={calcByKey(filteredSessions,s=>s.timeWindow||"Unknown")} labelKey="label" valueKey="perHour" color={C.accent} label="Avg $/hr" />
           </Card>
-
           <Card style={{ marginBottom:16 }}>
             <SectionTitle>By Day of Week</SectionTitle>
             <BarChart data={calcByKey(filteredSessions,s=>s.day||"Unknown",DAYS)} labelKey="label" valueKey="perHour" color={C.green} label="Avg $/hr" />
           </Card>
-
           <Card style={{ marginBottom:16 }}>
             <SectionTitle>Weather Comparison</SectionTitle>
             <BarChart data={[["Clear",false],["Rainy",true]].map(([lbl,r])=>{ const arr=filteredSessions.filter(s=>s.rained===r); const g=arr.reduce((s,x)=>s+(x.gross||0),0),h=arr.reduce((s,x)=>s+(x.hours||0),0); return {label:lbl,gross:g,hours:h,perHour:h>0?g/h:0,count:arr.length}; })} labelKey="label" valueKey="perHour" color={C.amber} label="Avg $/hr" />
             <div style={{ fontSize:11, color:C.muted, marginTop:8, textAlign:"center" }}>Clear: {filteredSessions.filter(s=>!s.rained).length} · Rainy: {filteredSessions.filter(s=>s.rained).length} sessions</div>
           </Card>
-
           <Card style={{ marginBottom:16 }}>
             <SectionTitle>By City</SectionTitle>
             <BarChart data={calcByKey(filteredSessions,s=>s.city||"Newnan GA",CITIES)} labelKey="label" valueKey="perHour" color={C.purple} label="Avg $/hr" />
           </Card>
-
           <BestCombos sessions={filteredSessions} />
         </div>
       )}
 
-      {/* ── SETTINGS ──────────────────────────────────────────────────────── */}
       {view==="settings" && settingsForm && (
         <div style={{ padding:"20px 16px 0" }}>
           <PageHeader title="Settings" />
-
           <SectionTitle>Tax & Mileage</SectionTitle>
           {[
-            {label:"SE Tax Rate (%)",     key:"taxRate",     display:v=>(v*100).toFixed(1), parse:v=>parseFloat(v)/100, placeholder:"15.3"},
-            {label:"IRS Mileage ($/mile)",key:"mileageRate", display:v=>v.toFixed(2),       parse:v=>parseFloat(v),     placeholder:"0.70"},
+            {label:"SE Tax Rate (%)",key:"taxRate",display:v=>(v*100).toFixed(1),parse:v=>parseFloat(v)/100,placeholder:"15.3"},
+            {label:"IRS Mileage ($/mile)",key:"mileageRate",display:v=>v.toFixed(2),parse:v=>parseFloat(v),placeholder:"0.70"},
           ].map(({label,key,display,parse,placeholder}) => (
             <FieldRow key={key} label={label}>
               <input type="number" step="any" placeholder={placeholder} defaultValue={display(settingsForm[key])} onBlur={e=>{ const val=parse(e.target.value); if (!isNaN(val)&&val>0) { const u={...settingsForm,[key]:val}; setSettingsForm(u); setSettings(u); }}} style={inputStyle} />
             </FieldRow>
           ))}
-
           <SectionTitle>Earnings Goals</SectionTitle>
           {[
-            {label:"Weekly Goal ($)", key:"weeklyGoal"},
+            {label:"Weekly Goal ($)",key:"weeklyGoal"},
             {label:"Monthly Goal ($)",key:"monthlyGoal"},
           ].map(({label,key}) => (
             <FieldRow key={key} label={label}>
               <input type="number" step="any" defaultValue={settingsForm[key]} onBlur={e=>{ const val=parseFloat(e.target.value); if (!isNaN(val)&&val>0) { const u={...settingsForm,[key]:val}; setSettingsForm(u); setSettings(u); }}} style={inputStyle} />
             </FieldRow>
           ))}
-
           <div style={{ fontSize:11, color:C.muted, marginBottom:24, padding:"10px 12px", background:C.surface2, borderRadius:10 }}>
             Changes apply immediately. IRS mileage rate for 2025 is $0.70/mile.
           </div>
-
           <SectionTitle>Export</SectionTitle>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:10, marginBottom:8 }}>
             <Btn onClick={()=>exportCSV(sessions)} style={{ padding:"14px 10px", textAlign:"center", lineHeight:1.4 }}>
@@ -783,15 +732,12 @@ export default function App() {
         </div>
       )}
 
-      {/* ── EVENTS ───────────────────────────────────────────────────────── */}
       {view==="events" && (
         <div style={{ padding:"20px 16px 0" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
             <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:17, fontWeight:600, color:C.text }}>Upcoming Events</div>
             <Btn onClick={fetchEvents} style={{ fontSize:11, padding:"6px 12px" }}>{eventsLoading ? "Loading..." : "Refresh"}</Btn>
           </div>
-
-          {/* Impact legend */}
           <Card style={{ marginBottom:16 }}>
             <SectionTitle>Earnings Impact Guide</SectionTitle>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
@@ -811,9 +757,7 @@ export default function App() {
               ))}
             </div>
           </Card>
-
           {eventsError && <div style={{ fontSize:12, color:C.accent, textAlign:"center", padding:"12px", background:C.surface, borderRadius:10, marginBottom:16 }}>{eventsError}</div>}
-
           {!eventsLoading && !eventsError && events.length === 0 && (
             <div style={{ textAlign:"center", padding:"40px 20px" }}>
               <div style={{ fontSize:32, marginBottom:12 }}>📅</div>
@@ -821,14 +765,12 @@ export default function App() {
               <Btn primary onClick={fetchEvents}>Load Events</Btn>
             </div>
           )}
-
           {eventsLoading && (
             <div style={{ textAlign:"center", padding:"40px 20px" }}>
               <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
               <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:C.muted }}>Fetching schedules...</div>
             </div>
           )}
-
           {!eventsLoading && events.length > 0 && (
             <>
               <SectionTitle>Next 30 Days · {events.length} games</SectionTitle>
@@ -868,7 +810,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── UNDO TOAST ────────────────────────────────────────────────────── */}
       {undoSession && (
         <div style={{ position:"fixed", bottom:80, left:"50%", transform:"translateX(-50%)", width:"calc(100% - 32px)", maxWidth:388, background:C.surface2, border:`0.5px solid ${C.border2}`, borderRadius:14, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", zIndex:200 }}>
           <span style={{ fontSize:13, color:C.text }}>Session deleted</span>
@@ -876,7 +817,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── NAV ───────────────────────────────────────────────────────────── */}
       <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:420, display:"flex", background:C.surface, borderTop:`0.5px solid ${C.border}`, zIndex:100 }}>
         {[
           {v:"dashboard", icon:"⌂", label:"Home"},
