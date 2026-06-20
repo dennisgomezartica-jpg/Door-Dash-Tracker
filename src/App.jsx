@@ -918,7 +918,7 @@ export default function App() {
                             <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:600, color: e.sport==="Holiday" ? C.amber : C.muted, textTransform:"uppercase", letterSpacing:"0.05em" }}>{e.sport}</span>
                           </div>
                           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, color:C.text }}>{e.home}</div>
-                          {e.away && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>vs {e.away}</div>}
+                          {e.away && e.sport !== "Holiday" && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>vs {e.away}</div>}
                           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted, marginTop:2 }}>{d.toLocaleDateString("en-US",{weekday:"long"})}{e.time ? ` · ${e.time}` : ""}</div>
                         </div>
                       </div>
