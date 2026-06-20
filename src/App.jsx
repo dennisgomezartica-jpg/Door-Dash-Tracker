@@ -342,6 +342,7 @@ export default function App() {
 
   useEffect(() => { if (sessions !== null) { setLastSaved(new Date()); } }, [sessions]);
   useEffect(() => { fetchWeather(); }, []);
+  useEffect(() => { if (view === "events" && events.length === 0) fetchEvents(); }, [view]);
   useEffect(() => { if (settingsForm) saveSettings(settingsForm); }, [settingsForm]);
 
   const totals      = useMemo(() => sessions ? computeTotals(sessions, settings.taxRate, settings.mileageRate) : null, [sessions, settings]);
@@ -933,13 +934,7 @@ export default function App() {
             </div>
           </Card>
           {eventsError && <div style={{ fontSize:12, color:C.accent, textAlign:"center", padding:"12px", background:C.surface, borderRadius:10, marginBottom:16 }}>{eventsError}</div>}
-          {!eventsLoading && !eventsError && events.length === 0 && (
-            <div style={{ textAlign:"center", padding:"40px 20px" }}>
-              <div style={{ fontSize:32, marginBottom:12 }}>📅</div>
-              <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, color:C.muted, marginBottom:16 }}>Tap Refresh to load upcoming games for Atlanta & Georgia teams</div>
-              <Btn primary onClick={fetchEvents}>Load Events</Btn>
-            </div>
-          )}
+
           {eventsLoading && (
             <div style={{ textAlign:"center", padding:"40px 20px" }}>
               <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
