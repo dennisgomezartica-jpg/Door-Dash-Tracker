@@ -60,6 +60,26 @@ function fmtTime12(t) {
   const ampm = h >= 12 ? "PM" : "AM";
   return `${h > 12 ? h - 12 : h || 12}:${String(m).padStart(2,"0")}${ampm}`;
 }
+function parseTimeToHHMM(str) {
+  if (!str) return "";
+  const s = str.trim().toLowerCase().replace(/\s+/g, "");
+  // Already 24h HH:MM
+  if (/^\d{1,2}:\d{2}$/.test(s) && !s.includes("am") && !s.includes("pm")) {
+    const [h, m] = s.split(":").map(Number);
+    if (h <= 23 && m <= 59) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  }
+  // 12h: 5pm, 5:30pm, 5:30 pm
+  const match = s.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/);
+  if (match) {
+    let h = parseInt(match[1]);
+    const m = parseInt(match[2] || "0");
+    const ampm = match[3];
+    if (ampm === "pm" && h !== 12) h += 12;
+    if (ampm === "am" && h === 12) h = 0;
+    if (h <= 23 && m <= 59) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  }
+  return "";
+}
 function fmtTimeRange(s) {
   if (s.startTime && s.endTime) return `${fmtTime12(s.startTime)}–${fmtTime12(s.endTime)}`;
   return s.timeWindow || "";
@@ -450,11 +470,13 @@ export default function App() {
   }
 
   async function handleSubmit() {
-    const hours = parseFloat(calcHours(form.startTime, form.endTime)) || 0;
+    const parsedStart = parseTimeToHHMM(form.startTime);
+    const parsedEnd = parseTimeToHHMM(form.endTime);
+    const hours = parseFloat(calcHours(parsedStart, parsedEnd)) || 0;
     if (!form.date||!hours||!form.miles||!form.gross) return;
     const was = !!editId;
-    const derivedWindow = form.startTime && form.endTime ? `${fmtTime12(form.startTime)}–${fmtTime12(form.endTime)}` : form.timeWindow;
-    const s = { id:editId||Date.now(), date:form.date, startTime:form.startTime, endTime:form.endTime, hours, miles:parseFloat(form.miles), gross:parseFloat(form.gross), timeWindow:derivedWindow, day:form.day, rained:form.rained, gas:parseFloat(form.gas)||0, carMaint:parseFloat(form.carMaint)||0, notes:form.notes||"", city:form.city||"Newnan GA" };
+    const derivedWindow = parsedStart && parsedEnd ? `${fmtTime12(parsedStart)}–${fmtTime12(parsedEnd)}` : form.timeWindow;
+    const s = { id:editId||Date.now(), date:form.date, startTime:parsedStart, endTime:parsedEnd, hours, miles:parseFloat(form.miles), gross:parseFloat(form.gross), timeWindow:derivedWindow, day:form.day, rained:form.rained, gas:parseFloat(form.gas)||0, carMaint:parseFloat(form.carMaint)||0, notes:form.notes||"", city:form.city||"Newnan GA" };
     if (was) { setSessions(arr => arr.map(r=>r.id===editId?s:r)); setEditId(null); } else { setSessions(arr=>[...arr,s]); }
     setForm(blankForm); setView(was?"sessions":"dashboard");
     try {
@@ -675,12 +697,12 @@ export default function App() {
           ))}
           <FieldRow label="Start Time / End Time">
             <div style={{ display:"flex", gap:8 }}>
-              <input name="startTime" type="time" value={form.startTime} onChange={handleFormChange} style={{ ...inputStyle, flex:1 }} />
-              <input name="endTime" type="time" value={form.endTime} onChange={handleFormChange} style={{ ...inputStyle, flex:1 }} />
+              <input name="startTime" type="text" inputMode="text" value={form.startTime} onChange={handleFormChange} placeholder="e.g. 5pm" style={{ ...inputStyle, flex:1 }} />
+              <input name="endTime" type="text" inputMode="text" value={form.endTime} onChange={handleFormChange} placeholder="e.g. 9pm" style={{ ...inputStyle, flex:1 }} />
             </div>
-            {form.startTime && form.endTime && (
+            {parseTimeToHHMM(form.startTime) && parseTimeToHHMM(form.endTime) && (
               <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:C.green, marginTop:6 }}>
-                = {calcHours(form.startTime, form.endTime)} hours
+                = {calcHours(parseTimeToHHMM(form.startTime), parseTimeToHHMM(form.endTime))} hours
               </div>
             )}
           </FieldRow>
