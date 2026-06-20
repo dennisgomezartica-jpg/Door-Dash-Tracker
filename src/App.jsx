@@ -5,6 +5,8 @@ const DEFAULT_TAX_RATE = 0.153;
 const DEFAULT_MILEAGE_RATE = 0.70;
 const TIME_WINDOWS = ["11AM–1PM","1PM–3PM","3PM–5PM","5PM–7PM","5PM–9PM","5PM–10PM","7PM–10PM","9AM–12PM","5PM–8:30PM","5PM–8PM","5PM–7:30PM","5PM–6PM","All Day"];
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const MIN_MEANINGFUL_HOURS = 1.5;
+function getDayName(d) { return DAYS[d.getDay()===0?6:d.getDay()-1]; }
 const CITIES = ["Newnan GA","Peachtree City","Fayetteville","Senoia","Other"];
 const HOLIDAYS = [
   "None",
@@ -148,7 +150,6 @@ const C = {
   green:"#00C896", greenDim:"rgba(0,200,150,0.12)", amber:"#F5A623", amberDim:"rgba(245,166,35,0.12)", purple:"#8B6FE8",
 };
 
-const API_URL = "https://doordash-api-production.up.railway.app";
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
 function Label({ children, style }) {
@@ -258,7 +259,7 @@ function BestCombos({ sessions }) {
             <div>
               <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, color:C.text }}>{c.day}</div>
               <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>{c.timeWindow||""} · {c.city}</div>
-              {c.hours < 1.5 && <span style={{ fontSize:9, fontWeight:600, padding:"2px 6px", borderRadius:6, background:C.amberDim, color:C.amber, letterSpacing:"0.06em", textTransform:"uppercase" }}>low data</span>}
+              {c.hours < MIN_MEANINGFUL_HOURS && <span style={{ fontSize:9, fontWeight:600, padding:"2px 6px", borderRadius:6, background:C.amberDim, color:C.amber, letterSpacing:"0.06em", textTransform:"uppercase" }}>low data</span>}
             </div>
           </div>
           <div style={{ textAlign:"right" }}>
@@ -327,7 +328,7 @@ export default function App() {
   const [migrateMsg, setMigrateMsg] = useState("");
   const undoTimer = useRef(null);
   const fileRef   = useRef();
-  const blankForm = { date:new Date().toISOString().slice(0,10), startTime:"", endTime:"", miles:"", gross:"", timeWindow:"5PM–9PM", day:DAYS[new Date().getDay()===0?6:new Date().getDay()-1], rained:false, gas:"", carMaint:"", notes:"", city:"Newnan GA", event_impact:"", holiday:"None" };
+  const blankForm = { date:new Date().toISOString().slice(0,10), startTime:"", endTime:"", miles:"", gross:"", timeWindow:"5PM–9PM", day:getDayName(new Date()), rained:false, gas:"", carMaint:"", notes:"", city:"Newnan GA", event_impact:"", holiday:"None" };
   const [detectedEvents, setDetectedEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [form, setForm] = useState(blankForm);
@@ -371,7 +372,7 @@ export default function App() {
 
   const bestWorst = useMemo(() => {
     if (!sessions||!sessions.length) return null;
-    const w = sessions.filter(s=>s.hours>=1.5).map(s=>({...s,perHour:s.hours>0?s.gross/s.hours:0}));
+    const w = sessions.filter(s=>s.hours>=MIN_MEANINGFUL_HOURS).map(s=>({...s,perHour:s.hours>0?s.gross/s.hours:0}));
     if (!w.length) return null;
     return { best:w.reduce((a,b)=>b.perHour>a.perHour?b:a), worst:w.reduce((a,b)=>b.perHour<a.perHour?b:a) };
   }, [sessions]);
@@ -419,17 +420,11 @@ export default function App() {
       if (!local.length) { setMigrateMsg("No local sessions found."); setMigrating(false); return; }
       let saved = 0;
       for (const s of local) {
-        await fetch("https://doordash-api-production.up.railway.app/sessions", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify(s)
-        });
+        await saveSession(s);
         saved++;
       }
-      // Reload sessions from DB
-      const res = await fetch("https://doordash-api-production.up.railway.app/sessions");
-      const data = await res.json();
-      setSessions(data.length > 0 ? data : SEED_DATA);
+      const data = await loadSessions();
+      setSessions(data || SEED_DATA);
       setMigrateMsg(`✅ ${saved} sessions migrated to database!`);
     } catch(err) {
       setMigrateMsg("Migration failed: " + err.message);
@@ -440,7 +435,7 @@ export default function App() {
   async function fetchEvents() {
     setEventsLoading(true); setEventsError("");
     try {
-      const res = await fetch("https://doordash-api-production.up.railway.app/events");
+      const res = await fetch(`${API}/events`);
       const data = await res.json();
       setEvents(data.events || []);
       if (!data.events || data.events.length === 0) setEventsError("No upcoming events found.");
@@ -454,12 +449,12 @@ export default function App() {
     const {name,value,type,checked}=e.target;
     if (name === "date" && value) {
       const d = new Date(value + "T12:00:00");
-      const dow = DAYS[d.getDay()===0?6:d.getDay()-1];
+      const dow = getDayName(d);
       setForm(f=>({...f, date:value, day:dow, event_impact:"", holiday:"None"}));
       setDetectedEvents([]);
       setLoadingEvents(true);
       try {
-        const res = await fetch(`https://doordash-api-production.up.railway.app/events/by-date?date=${value}`);
+        const res = await fetch(`${API}/events/by-date?date=${value}`);
         const data = await res.json();
         setDetectedEvents(data.events || []);
       } catch {}
@@ -521,7 +516,7 @@ export default function App() {
         const d=new Date(rawDate); if (isNaN(d)) continue;
         const dateStr=d.toISOString().slice(0,10), hour=d.getHours();
         const tw=hour<12?"9AM–12PM":hour<13?"11AM–1PM":hour<15?"1PM–3PM":hour<17?"3PM–5PM":"5PM–9PM";
-        const dow=DAYS[d.getDay()===0?6:d.getDay()-1];
+        const dow=getDayName(d);
         if (sessions.some(s=>s.date===dateStr&&s.timeWindow===tw)) { skipped++; continue; }
         newS.push({ id:Date.now()+i, date:dateStr, hours:hoursIdx>=0?(parseFloat(cols[hoursIdx])||0):0, miles:milesIdx>=0?(parseFloat(cols[milesIdx])||0):0, gross:grossIdx>=0?(parseFloat(cols[grossIdx])||0):0, timeWindow:tw, day:dow, rained:false, gas:0, carMaint:0, notes:"", city:"Newnan GA" });
         imported++;
