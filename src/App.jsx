@@ -42,7 +42,8 @@ async function loadSessions() {
   } catch { return null; }
 }
 async function saveSession(s) {
-  try { await fetch(`${API}/sessions`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(s) }); } catch {}
+  const res = await fetch(`${API}/sessions`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(s) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 async function deleteSessionAPI(id) {
   try { await fetch(`${API}/sessions/${id}`, { method:"DELETE" }); } catch {}
@@ -281,6 +282,7 @@ export default function App() {
   const [weather, setWeather]       = useState([]);
   const [importMsg, setImportMsg]   = useState("");
   const [lastSaved, setLastSaved]   = useState(null);
+  const [saveError, setSaveError]   = useState(null);
   const [migrating, setMigrating] = useState(false);
   const [migrateMsg, setMigrateMsg] = useState("");
   const undoTimer = useRef(null);
@@ -427,13 +429,19 @@ export default function App() {
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!form.date||!form.hours||!form.miles||!form.gross) return;
     const was = !!editId;
     const s = { id:editId||Date.now(), date:form.date, hours:parseFloat(form.hours), miles:parseFloat(form.miles), gross:parseFloat(form.gross), timeWindow:form.timeWindow, day:form.day, rained:form.rained, gas:parseFloat(form.gas)||0, carMaint:parseFloat(form.carMaint)||0, notes:form.notes||"", city:form.city||"Newnan GA" };
     if (was) { setSessions(arr => arr.map(r=>r.id===editId?s:r)); setEditId(null); } else { setSessions(arr=>[...arr,s]); }
-    saveSession(s);
     setForm(blankForm); setView(was?"sessions":"dashboard");
+    try {
+      await saveSession(s);
+      setLastSaved(new Date());
+      setSaveError(null);
+    } catch(err) {
+      setSaveError(err.message || "Save failed — check connection");
+    }
   }
 
   function handleEdit(s) { setEditId(s.id); setForm({ date:s.date, hours:s.hours, miles:s.miles, gross:s.gross, timeWindow:s.timeWindow, day:s.day, rained:s.rained, gas:s.gas||"", carMaint:s.carMaint||"", notes:s.notes||"", city:s.city||"Newnan GA" }); setView("add"); }
@@ -626,7 +634,10 @@ export default function App() {
             </div>
           ))}
           {sessions.length>5 && <div style={{ fontSize:12, color:C.muted, textAlign:"center", padding:"12px 0", cursor:"pointer" }} onClick={()=>setView("sessions")}>View all {sessions.length} sessions →</div>}
-          {lastSaved && <div style={{ fontSize:10, color:C.border2, textAlign:"center", padding:"8px 0 4px" }}>Saved {lastSaved.toLocaleTimeString()}</div>}
+          {saveError
+            ? <div style={{ fontSize:10, color:C.accent, textAlign:"center", padding:"8px 0 4px" }}>⚠ {saveError}</div>
+            : lastSaved && <div style={{ fontSize:10, color:C.green, textAlign:"center", padding:"8px 0 4px" }}>✓ Saved {lastSaved.toLocaleTimeString()}</div>
+          }
         </div>
       )}
 
