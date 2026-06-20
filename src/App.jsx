@@ -54,6 +54,26 @@ async function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.s
 const fmt$ = (n) => "$" + (Number(n)||0).toFixed(2);
 const fmtN = (n, d=1) => (Number(n)||0).toFixed(d);
 
+function fmtTime12(t) {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${h > 12 ? h - 12 : h || 12}:${String(m).padStart(2,"0")}${ampm}`;
+}
+function fmtTimeRange(s) {
+  if (s.startTime && s.endTime) return `${fmtTime12(s.startTime)}–${fmtTime12(s.endTime)}`;
+  return s.timeWindow || "";
+}
+
+function calcHours(start, end) {
+  if (!start || !end) return "";
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins < 0) mins += 24 * 60;
+  return (mins / 60).toFixed(2);
+}
+
 function computeTotals(sessions, taxRate=DEFAULT_TAX_RATE, mileageRate=DEFAULT_MILEAGE_RATE) {
   const totalHours = sessions.reduce((s,r) => s+(r.hours||0), 0);
   const totalMiles = sessions.reduce((s,r) => s+(r.miles||0), 0);
@@ -217,7 +237,7 @@ function BestCombos({ sessions }) {
             <span style={{ fontSize:18 }}>{medals[i]}</span>
             <div>
               <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, color:C.text }}>{c.day}</div>
-              <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>{c.timeWindow} · {c.city}</div>
+              <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>{c.timeWindow||""} · {c.city}</div>
               {c.hours < 1.5 && <span style={{ fontSize:9, fontWeight:600, padding:"2px 6px", borderRadius:6, background:C.amberDim, color:C.amber, letterSpacing:"0.06em", textTransform:"uppercase" }}>low data</span>}
             </div>
           </div>
@@ -287,7 +307,7 @@ export default function App() {
   const [migrateMsg, setMigrateMsg] = useState("");
   const undoTimer = useRef(null);
   const fileRef   = useRef();
-  const blankForm = { date:new Date().toISOString().slice(0,10), hours:"", miles:"", gross:"", timeWindow:"5PM–9PM", day:DAYS[new Date().getDay()===0?6:new Date().getDay()-1], rained:false, gas:"", carMaint:"", notes:"", city:"Newnan GA", event_impact:"", holiday:"None" };
+  const blankForm = { date:new Date().toISOString().slice(0,10), startTime:"", endTime:"", miles:"", gross:"", timeWindow:"5PM–9PM", day:DAYS[new Date().getDay()===0?6:new Date().getDay()-1], rained:false, gas:"", carMaint:"", notes:"", city:"Newnan GA", event_impact:"", holiday:"None" };
   const [detectedEvents, setDetectedEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [form, setForm] = useState(blankForm);
@@ -430,9 +450,11 @@ export default function App() {
   }
 
   async function handleSubmit() {
-    if (!form.date||!form.hours||!form.miles||!form.gross) return;
+    const hours = parseFloat(calcHours(form.startTime, form.endTime)) || 0;
+    if (!form.date||!hours||!form.miles||!form.gross) return;
     const was = !!editId;
-    const s = { id:editId||Date.now(), date:form.date, hours:parseFloat(form.hours), miles:parseFloat(form.miles), gross:parseFloat(form.gross), timeWindow:form.timeWindow, day:form.day, rained:form.rained, gas:parseFloat(form.gas)||0, carMaint:parseFloat(form.carMaint)||0, notes:form.notes||"", city:form.city||"Newnan GA" };
+    const derivedWindow = form.startTime && form.endTime ? `${fmtTime12(form.startTime)}–${fmtTime12(form.endTime)}` : form.timeWindow;
+    const s = { id:editId||Date.now(), date:form.date, startTime:form.startTime, endTime:form.endTime, hours, miles:parseFloat(form.miles), gross:parseFloat(form.gross), timeWindow:derivedWindow, day:form.day, rained:form.rained, gas:parseFloat(form.gas)||0, carMaint:parseFloat(form.carMaint)||0, notes:form.notes||"", city:form.city||"Newnan GA" };
     if (was) { setSessions(arr => arr.map(r=>r.id===editId?s:r)); setEditId(null); } else { setSessions(arr=>[...arr,s]); }
     setForm(blankForm); setView(was?"sessions":"dashboard");
     try {
@@ -444,7 +466,7 @@ export default function App() {
     }
   }
 
-  function handleEdit(s) { setEditId(s.id); setForm({ date:s.date, hours:s.hours, miles:s.miles, gross:s.gross, timeWindow:s.timeWindow, day:s.day, rained:s.rained, gas:s.gas||"", carMaint:s.carMaint||"", notes:s.notes||"", city:s.city||"Newnan GA" }); setView("add"); }
+  function handleEdit(s) { setEditId(s.id); setForm({ date:s.date, startTime:s.startTime||"", endTime:s.endTime||"", miles:s.miles, gross:s.gross, timeWindow:s.timeWindow||"", day:s.day, rained:s.rained, gas:s.gas||"", carMaint:s.carMaint||"", notes:s.notes||"", city:s.city||"Newnan GA", event_impact:s.event_impact||"", holiday:s.holiday||"None" }); setView("add"); }
 
   function handleDelete(id) {
     const deleted = sessions.find(s=>s.id===id);
@@ -624,7 +646,7 @@ export default function App() {
             <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"12px 0", borderBottom:`0.5px solid ${C.border}` }}>
               <div>
                 <div style={{ fontSize:13, fontWeight:500, color:C.text }}>{s.date} · {s.day}</div>
-                <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.hours}h · {fmtN(s.miles)}mi · {s.timeWindow}{s.rained?" 🌧":""}{s.city ? " · "+s.city : ""}</div>
+                <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.hours}h · {fmtN(s.miles)}mi · {fmtTimeRange(s)}{s.rained?" 🌧":""}{s.city ? " · "+s.city : ""}</div>
                 {s.notes && <div style={{ fontSize:11, color:C.muted, fontStyle:"italic", marginTop:2 }}>{s.notes}</div>}
               </div>
               <div style={{ textAlign:"right" }}>
@@ -646,7 +668,23 @@ export default function App() {
           <PageHeader title={editId?"Edit Session":"Log Session"} onBack={()=>{setEditId(null);setView(editId?"sessions":"dashboard");}} />
           {[
             {label:"Date",name:"date",type:"date"},
-            {label:"Hours",name:"hours",type:"number",placeholder:"e.g. 4"},
+          ].map(({label,name,type,placeholder}) => (
+            <FieldRow key={name} label={label}>
+              <input name={name} type={type} value={form[name]} onChange={handleFormChange} placeholder={placeholder} step="any" style={inputStyle} />
+            </FieldRow>
+          ))}
+          <FieldRow label="Start Time / End Time">
+            <div style={{ display:"flex", gap:8 }}>
+              <input name="startTime" type="time" value={form.startTime} onChange={handleFormChange} style={{ ...inputStyle, flex:1 }} />
+              <input name="endTime" type="time" value={form.endTime} onChange={handleFormChange} style={{ ...inputStyle, flex:1 }} />
+            </div>
+            {form.startTime && form.endTime && (
+              <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:C.green, marginTop:6 }}>
+                = {calcHours(form.startTime, form.endTime)} hours
+              </div>
+            )}
+          </FieldRow>
+          {[
             {label:"Miles",name:"miles",type:"number",placeholder:"e.g. 75"},
             {label:"Gross Earnings ($)",name:"gross",type:"number",placeholder:"e.g. 79.24"},
             {label:"Gas Expenses ($)",name:"gas",type:"number",placeholder:"optional"},
@@ -656,11 +694,6 @@ export default function App() {
               <input name={name} type={type} value={form[name]} onChange={handleFormChange} placeholder={placeholder} step="any" style={inputStyle} />
             </FieldRow>
           ))}
-          <FieldRow label="Time Window">
-            <select name="timeWindow" value={form.timeWindow} onChange={handleFormChange} style={inputStyle}>
-              {TIME_WINDOWS.map(t=><option key={t} value={t}>{t}</option>)}
-            </select>
-          </FieldRow>
           <FieldRow label="Day of the Week">
             <select name="day" value={form.day} onChange={handleFormChange} style={inputStyle}>
               {DAYS.map(d=><option key={d} value={d}>{d}</option>)}
@@ -723,7 +756,7 @@ export default function App() {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:500, color:C.text }}>{s.date} · {s.day}</div>
-                  <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.hours}h · {fmtN(s.miles)}mi · {s.timeWindow}{s.rained?" · 🌧 Rained":""}{s.city ? " · "+s.city : ""}</div>
+                  <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.hours}h · {fmtN(s.miles)}mi · {fmtTimeRange(s)}{s.rained?" · 🌧 Rained":""}{s.city ? " · "+s.city : ""}</div>
                   {(s.gas||s.carMaint) ? <div style={{ fontSize:11, color:C.muted }}>Gas: {fmt$(s.gas+s.carMaint)}</div> : null}
                   {s.notes ? <div style={{ fontSize:11, color:C.muted, fontStyle:"italic", marginTop:2 }}>{s.notes}</div> : null}
                 </div>
@@ -777,7 +810,7 @@ export default function App() {
                     <Label style={{ marginBottom:6, color }}>{label}</Label>
                     <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:16, fontWeight:600, color }}>{fmt$(s.perHour)}/hr</div>
                     <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>{s.date}</div>
-                    <div style={{ fontSize:11, color:C.muted }}>{s.day} · {s.timeWindow}</div>
+                    <div style={{ fontSize:11, color:C.muted }}>{s.day} · {fmtTimeRange(s)}</div>
                     <div style={{ fontSize:11, color:C.muted }}>{fmt$(s.gross)} · {s.hours}h</div>
                   </div>
                 ))}
