@@ -593,17 +593,7 @@ export default function App() {
               <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:22, color:C.text, letterSpacing:"-0.01em" }}>Dashboard</div>
               <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>Newnan, GA</div>
             </div>
-            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-              {confirmDeleteId==="reset" ? (
-                <div style={{ display:"flex", gap:6 }}>
-                  <Btn onClick={() => { setSessions(SEED_DATA); setConfirmDeleteId(null); }} style={{ fontSize:11, padding:"6px 10px" }}>Confirm</Btn>
-                  <Btn onClick={() => setConfirmDeleteId(null)} style={{ fontSize:11, padding:"6px 10px" }}>Cancel</Btn>
-                </div>
-              ) : (
-                <button onClick={() => setConfirmDeleteId("reset")} style={{ background:"none", border:`0.5px solid ${C.border2}`, borderRadius:8, padding:"7px 10px", color:C.muted, cursor:"pointer", fontSize:13 }} title="Reset data">↺</button>
-              )}
-              <Btn primary onClick={() => { setEditId(null); setView("add"); }}>+ Log</Btn>
-            </div>
+            <Btn primary onClick={() => { setEditId(null); setView("add"); }}>+ Log</Btn>
           </div>
 
           <Card style={{ marginBottom:16, textAlign:"center", background:`linear-gradient(135deg, #111827 0%, #1a1030 100%)`, border:`0.5px solid ${C.border}` }}>
