@@ -955,6 +955,42 @@ export default function App() {
           </div>
           <div style={{ fontSize:11, color:C.muted }}>{sessions.length} sessions · all-time data</div>
 
+          <SectionTitle>Tax Year Summary</SectionTitle>
+          {(() => {
+            const byYear = {};
+            sessions.forEach(s => {
+              const year = s.date.slice(0, 4);
+              if (!byYear[year]) byYear[year] = [];
+              byYear[year].push(s);
+            });
+            return Object.keys(byYear).sort((a,b) => b.localeCompare(a)).map(year => {
+              const t = computeTotals(byYear[year], settings.taxRate, settings.mileageRate);
+              return (
+                <div key={year} style={{ marginBottom:16, background:C.surface2, borderRadius:14, padding:"14px 16px", border:`0.5px solid ${C.border}` }}>
+                  <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:18, color:C.text, marginBottom:12 }}>{year} Tax Year</div>
+                  {[
+                    { label:"Gross Income",         value:fmt$(t.totalGross),      note:"Report on Schedule C" },
+                    { label:"Miles Driven",         value:fmtN(t.totalMiles,1)+"mi", note:"IRS standard mileage method" },
+                    { label:"Mileage Deduction",    value:fmt$(t.mileDeduction),   note:`${fmtN(t.totalMiles,1)}mi × $${settings.mileageRate.toFixed(2)}`, color:C.green },
+                    { label:"Taxable Income",       value:fmt$(t.taxableIncome),   note:"After mileage deduction" },
+                    { label:"SE Tax Owed (15.3%)",  value:fmt$(t.taxOwed),         note:"Self-employment tax", color:C.accent },
+                    { label:"Gas Spent",            value:fmt$(t.totalGas),        note:"Covered by mileage deduction", color:C.muted },
+                    { label:"Real Take-Home",       value:fmt$(t.realTakeHome),    note:"After tax & gas", color:C.green },
+                  ].map(({ label, value, note, color }) => (
+                    <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:10, marginBottom:10, borderBottom:`0.5px solid ${C.border}` }}>
+                      <div>
+                        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:500, color:C.text }}>{label}</div>
+                        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, color:C.muted, marginTop:2 }}>{note}</div>
+                      </div>
+                      <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:600, color:color||C.text }}>{value}</div>
+                    </div>
+                  ))}
+                  <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, color:C.muted, marginTop:4 }}>{byYear[year].length} sessions · {fmtN(t.totalHours)}h worked</div>
+                </div>
+              );
+            });
+          })()}
+
           <SectionTitle>Database Migration</SectionTitle>
           <div style={{ fontSize:11, color:C.muted, marginBottom:12, padding:"10px 12px", background:C.surface2, borderRadius:10 }}>
             If you have sessions saved locally from before the database was set up, click below to migrate them.
