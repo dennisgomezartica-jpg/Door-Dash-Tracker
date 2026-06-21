@@ -328,6 +328,7 @@ export default function App() {
   const [saveError, setSaveError]   = useState(null);
   const [migrating, setMigrating] = useState(false);
   const [migrateMsg, setMigrateMsg] = useState("");
+  const [censusData, setCensusData] = useState(null);
   const undoTimer = useRef(null);
   const fileRef   = useRef();
   const blankForm = { date:new Date().toISOString().slice(0,10), startTime:"", endTime:"", miles:"", gross:"", timeWindow:"5PM–9PM", day:getDayName(new Date()), rained:false, gas:"", carMaint:"", notes:"", city:"Newnan GA", event_impact:"", holiday:"None" };
@@ -345,6 +346,7 @@ export default function App() {
   useEffect(() => { if (sessions !== null) { setLastSaved(new Date()); } }, [sessions]);
   useEffect(() => { fetchWeather(); }, []);
   useEffect(() => { if (view === "events" && events.length === 0) fetchEvents(); }, [view]);
+  useEffect(() => { if (view === "analytics") fetchCensus(); }, [view]);
   useEffect(() => { if (settingsForm) saveSettings(settingsForm); }, [settingsForm]);
 
   const totals      = useMemo(() => sessions ? computeTotals(sessions, settings.taxRate, settings.mileageRate) : null, [sessions, settings]);
@@ -389,6 +391,27 @@ export default function App() {
     const tax=Math.max(0,annGross-annMiles*settings.mileageRate)*settings.taxRate;
     return { annualGross:annGross, annualNet:annGross-tax, basedOn:recent.length };
   }, [sessions, settings]);
+
+  async function fetchCensus() {
+    if (censusData) return;
+    try {
+      const res = await fetch("https://api.census.gov/data/2022/acs/acs5?get=NAME,B19013_001E,B01003_001E&for=county:077,113&in=state:13");
+      const rows = await res.json();
+      const map = {};
+      rows.slice(1).forEach(([name, income, pop]) => {
+        const county = name.split(",")[0];
+        if (county.includes("Coweta")) {
+          map["Newnan GA"] = { income: parseInt(income), pop: parseInt(pop) };
+          map["Senoia"]    = { income: parseInt(income), pop: parseInt(pop) };
+        }
+        if (county.includes("Fayette")) {
+          map["Peachtree City"] = { income: parseInt(income), pop: parseInt(pop) };
+          map["Fayetteville"]   = { income: parseInt(income), pop: parseInt(pop) };
+        }
+      });
+      setCensusData(map);
+    } catch(err) { console.error("Census fetch failed:", err); }
+  }
 
   async function fetchWeather() {
     try {
@@ -859,6 +882,36 @@ export default function App() {
           <Card style={{ marginBottom:16 }}>
             <SectionTitle>By City</SectionTitle>
             <BarChart data={calcByKey(filteredSessions,s=>s.city||"Newnan GA",CITIES)} labelKey="label" valueKey="perHour" color={C.purple} label="Avg $/hr" />
+          </Card>
+          <Card style={{ marginBottom:16 }}>
+            <SectionTitle>Market Demographics · Census 2022</SectionTitle>
+            {!censusData && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:C.muted, textAlign:"center", padding:"16px 0" }}>Loading census data...</div>}
+            {censusData && ["Newnan GA","Peachtree City","Fayetteville","Senoia"].map(city => {
+              const d = censusData[city];
+              if (!d) return null;
+              const cityEarnings = calcByKey(filteredSessions, s => s.city||"Newnan GA", CITIES).find(c => c.label === city);
+              const perHour = cityEarnings ? cityEarnings.perHour : 0;
+              const incomeScore = d.income > 80000 ? "🔥 High" : d.income > 60000 ? "⚡ Mid" : "💤 Low";
+              return (
+                <div key={city} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", background:C.surface2, borderRadius:12, marginBottom:8, border:`0.5px solid ${C.border}` }}>
+                  <div>
+                    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, color:C.text }}>{city}</div>
+                    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted, marginTop:2 }}>
+                      Median income ${d.income.toLocaleString()} · Pop {(d.pop/1000).toFixed(0)}k
+                    </div>
+                    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, color:C.amber, marginTop:2 }}>{incomeScore} spending area</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    {perHour > 0
+                      ? <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:600, color:C.green }}>{fmt$(perHour)}/hr</div>
+                      : <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>No sessions</div>
+                    }
+                    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, color:C.muted, marginTop:2 }}>your avg</div>
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, color:C.muted, marginTop:4, textAlign:"right" }}>Source: US Census ACS 5-Year Estimates</div>
           </Card>
           <BestCombos sessions={filteredSessions} />
         </div>
