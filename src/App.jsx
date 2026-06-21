@@ -106,7 +106,7 @@ function computeTotals(sessions, taxRate=DEFAULT_TAX_RATE, mileageRate=DEFAULT_M
   const mileDeduction = totalMiles * mileageRate;
   const taxableIncome = Math.max(0, totalGross - mileDeduction);
   const taxOwed   = taxableIncome * taxRate;
-  const netProfit = totalGross - taxOwed;
+  const netProfit = totalGross - taxOwed - totalGas;
   const avgActual   = totalHours > 0 ? totalGross / totalHours : 0;
   const avgAfterTax = totalHours > 0 ? netProfit / totalHours : 0;
   return { totalHours, totalMiles, totalGross, totalGas, mileDeduction, taxableIncome, taxOwed, netProfit, avgActual, avgAfterTax };
