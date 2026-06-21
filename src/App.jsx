@@ -107,9 +107,10 @@ function computeTotals(sessions, taxRate=DEFAULT_TAX_RATE, mileageRate=DEFAULT_M
   const taxableIncome = Math.max(0, totalGross - mileDeduction);
   const taxOwed   = taxableIncome * taxRate;
   const netProfit = totalGross - taxOwed;
+  const realTakeHome = netProfit - totalGas;
   const avgActual   = totalHours > 0 ? totalGross / totalHours : 0;
   const avgAfterTax = totalHours > 0 ? netProfit / totalHours : 0;
-  return { totalHours, totalMiles, totalGross, totalGas, mileDeduction, taxableIncome, taxOwed, netProfit, avgActual, avgAfterTax };
+  return { totalHours, totalMiles, totalGross, totalGas, mileDeduction, taxableIncome, taxOwed, netProfit, realTakeHome, avgActual, avgAfterTax };
 }
 
 function exportCSV(sessions) {
@@ -606,7 +607,7 @@ export default function App() {
           </div>
 
           <Card style={{ marginBottom:16, textAlign:"center", background:`linear-gradient(135deg, #111827 0%, #1a1030 100%)`, border:`0.5px solid ${C.border}` }}>
-            <BigStat label="Net Profit · All Time" value={totals.netProfit} sub={`${fmt$(totals.totalGross)} gross · ${sessions.length} sessions`} />
+            <BigStat label="Real Take-Home · All Time" value={totals.realTakeHome} sub={`${fmt$(totals.totalGross)} gross · ${sessions.length} sessions`} />
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:16 }}>
               <div style={{ background:C.surface2, borderRadius:10, padding:"10px 12px" }}>
                 <Label style={{ marginBottom:4 }}>Avg $/hr actual</Label>
@@ -664,9 +665,11 @@ export default function App() {
           <SectionTitle>All Time</SectionTitle>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:10, marginBottom:16 }}>
             <MiniStat label="Total Gross"        value={fmt$(totals.totalGross)}      sub={`${sessions.length} sessions`} />
+            <MiniStat label="Net Profit"         value={fmt$(totals.netProfit)}       valueColor={C.green} />
             <MiniStat label="Tax Owed"           value={fmt$(totals.taxOwed)}         valueColor={C.accent} />
+            <MiniStat label="Gas Spent"          value={fmt$(totals.totalGas)}        valueColor={C.accent} />
+            <MiniStat label="Real Take-Home"     value={fmt$(totals.realTakeHome)}    valueColor={C.green} />
             <MiniStat label="Mileage Deduction"  value={fmt$(totals.mileDeduction)}   valueColor={C.green} />
-            <MiniStat label="Gas Tracked"        value={fmt$(totals.totalGas)}        />
             <MiniStat label="Total Hours"        value={fmtN(totals.totalHours)+"h"} />
             <MiniStat label="Total Miles"        value={fmtN(totals.totalMiles)+"mi"} />
           </div>
