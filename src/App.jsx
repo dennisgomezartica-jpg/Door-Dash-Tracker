@@ -34,23 +34,21 @@ const DEFAULT_SETTINGS = { taxRate:DEFAULT_TAX_RATE, mileageRate:DEFAULT_MILEAGE
 const STORAGE_KEY = "doordash_sessions_v3";
 const SETTINGS_KEY = "doordash_settings_v1";
 
-const API = "https://doordash-api-production.up.railway.app";
-const API_KEY = import.meta.env.VITE_API_KEY || "";
-const authHeaders = { "X-API-Key": API_KEY };
+const EVENTS_API = "https://doordash-api-production.up.railway.app";
 
 async function loadSessions() {
   try {
-    const res = await fetch(`${API}/sessions`, { headers: authHeaders });
+    const res = await fetch("/api/sessions");
     const data = await res.json();
     return data.length > 0 ? data : null;
   } catch { return null; }
 }
 async function saveSession(s) {
-  const res = await fetch(`${API}/sessions`, { method:"POST", headers:{"Content-Type":"application/json", ...authHeaders}, body:JSON.stringify(s) });
+  const res = await fetch("/api/sessions", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(s) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 async function deleteSessionAPI(id) {
-  try { await fetch(`${API}/sessions/${id}`, { method:"DELETE", headers: authHeaders }); } catch {}
+  try { await fetch(`/api/sessions/${id}`, { method:"DELETE" }); } catch {}
 }
 async function loadSettings() { try { const r = localStorage.getItem(SETTINGS_KEY); if (r) return { ...DEFAULT_SETTINGS, ...JSON.parse(r) }; } catch {} return DEFAULT_SETTINGS; }
 async function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
@@ -462,7 +460,7 @@ export default function App() {
   async function fetchEvents() {
     setEventsLoading(true); setEventsError("");
     try {
-      const res = await fetch(`${API}/events`);
+      const res = await fetch(`${EVENTS_API}/events`);
       const data = await res.json();
       setEvents(data.events || []);
       if (!data.events || data.events.length === 0) setEventsError("No upcoming events found.");
@@ -481,7 +479,7 @@ export default function App() {
       setDetectedEvents([]);
       setLoadingEvents(true);
       try {
-        const res = await fetch(`${API}/events/by-date?date=${value}`);
+        const res = await fetch(`${EVENTS_API}/events/by-date?date=${value}`);
         const data = await res.json();
         setDetectedEvents(data.events || []);
       } catch {}
