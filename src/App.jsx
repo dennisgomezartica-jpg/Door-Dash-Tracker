@@ -395,7 +395,7 @@ export default function App() {
   async function fetchCensus() {
     if (censusData) return;
     try {
-      const res = await fetch("https://api.census.gov/data/2022/acs/acs5?get=NAME,B19013_001E,B01003_001E&for=county:077,113&in=state:13");
+      const res = await fetch(`https://api.census.gov/data/2022/acs/acs5?get=NAME,B19013_001E,B01003_001E&for=county:077,113&in=state:13&key=${import.meta.env.VITE_CENSUS_KEY||"77807a4e5441a562a03ed1e10a7faa3330676aa4"}`);
       const rows = await res.json();
       const map = {};
       rows.slice(1).forEach(([name, income, pop]) => {
