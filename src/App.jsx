@@ -35,20 +35,22 @@ const STORAGE_KEY = "doordash_sessions_v3";
 const SETTINGS_KEY = "doordash_settings_v1";
 
 const API = "https://doordash-api-production.up.railway.app";
+const API_KEY = import.meta.env.VITE_API_KEY || "";
+const authHeaders = { "X-API-Key": API_KEY };
 
 async function loadSessions() {
   try {
-    const res = await fetch(`${API}/sessions`);
+    const res = await fetch(`${API}/sessions`, { headers: authHeaders });
     const data = await res.json();
     return data.length > 0 ? data : null;
   } catch { return null; }
 }
 async function saveSession(s) {
-  const res = await fetch(`${API}/sessions`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(s) });
+  const res = await fetch(`${API}/sessions`, { method:"POST", headers:{"Content-Type":"application/json", ...authHeaders}, body:JSON.stringify(s) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 async function deleteSessionAPI(id) {
-  try { await fetch(`${API}/sessions/${id}`, { method:"DELETE" }); } catch {}
+  try { await fetch(`${API}/sessions/${id}`, { method:"DELETE", headers: authHeaders }); } catch {}
 }
 async function loadSettings() { try { const r = localStorage.getItem(SETTINGS_KEY); if (r) return { ...DEFAULT_SETTINGS, ...JSON.parse(r) }; } catch {} return DEFAULT_SETTINGS; }
 async function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {} }
