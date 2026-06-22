@@ -763,7 +763,6 @@ export default function App() {
                   </div>
                   <div style={{ display:"flex", gap:6 }}>
                     <button onClick={() => setForm(f=>({...f, event_impact: ev.name}))} style={{ fontSize:11, padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", background: form.event_impact===ev.name ? C.green : C.surface, color: form.event_impact===ev.name ? "#fff" : C.muted, fontWeight: form.event_impact===ev.name ? 600 : 400 }}>✓ Yes</button>
-                    <button onClick={() => setForm(f=>({...f, event_impact: form.event_impact===ev.name ? "" : f.event_impact}))} style={{ fontSize:11, padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", background: C.surface, color:C.muted }}>✗ No</button>
                   </div>
                 </div>
               ))}
