@@ -478,7 +478,7 @@ export default function App() {
   async function fetchEvents() {
     setEventsLoading(true); setEventsError("");
     try {
-      const res = await fetch(`${EVENTS_API}/events`);
+      const res = await fetch(`/api/events`);
       const data = await res.json();
       setEvents(data.events || []);
       if (!data.events || data.events.length === 0) setEventsError("No upcoming events found.");
@@ -497,7 +497,7 @@ export default function App() {
       setDetectedEvents([]);
       setLoadingEvents(true);
       try {
-        const res = await fetch(`${EVENTS_API}/events/by-date?date=${value}`);
+        const res = await fetch(`/api/events/by-date?date=${value}`);
         const data = await res.json();
         setDetectedEvents(data.events || []);
       } catch {}
