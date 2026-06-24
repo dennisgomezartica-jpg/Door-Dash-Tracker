@@ -10,9 +10,11 @@ A full-stack web application I built to track, analyze, and optimize my DoorDash
 
 ## Why I Built This
 
-I was tracking my DoorDash earnings in a spreadsheet and kept asking questions it couldn't answer — which nights actually pay best? Does rain help? Am I working too many miles for too little pay? I built this app to answer those questions, make tax season stress-free, and give myself a real edge as a driver.
+As a college student, I needed to know if I could actually survive off DoorDashing. It wasn't just curiosity — it was a financial necessity. The DoorDash app shows you what you made, but it doesn't show you what you *kept* after gas, taxes, and miles. I had no way to know if I was really making enough to get by.
 
-This project also gave me hands-on experience with full-stack development, API security, serverless architecture, and integrating large language models into a real product.
+I built this app to find out the truth about my earnings. It let me see my real take-home pay — after every deduction — and finally answer the question: can I survive off this?
+
+That question turned into a full-stack project with AI insights, live sports event tracking, tax season summaries, and a security architecture I had to rebuild after a real vulnerability was discovered. What started as a personal finance tool became the most technically challenging thing I've built.
 
 ---
 
