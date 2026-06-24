@@ -573,8 +573,11 @@ export default function App() {
   const sortedSessions = useMemo(() => sessions ? [...sessions].sort((a,b)=>b.date.localeCompare(a.date)) : [], [sessions]);
 
   if (!sessions||!totals||!settingsForm) return (
-    <div style={{ background:C.bg, minHeight:400, display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div style={{ fontFamily:"'DM Sans',sans-serif", color:C.muted, fontSize:14 }}>Loading...</div>
+    <div style={{ background:C.bg, minHeight:"100vh", padding:"20px 16px", maxWidth:420, margin:"0 auto" }}>
+      <style>{`@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.7} }`}</style>
+      {[{ w:"60%", h:28, mb:8 }, { w:"40%", h:14, mb:24 }, { w:"100%", h:120, mb:16 }, { w:"100%", h:80, mb:16 }, { w:"100%", h:60, mb:16 }].map((s,i) => (
+        <div key={i} style={{ width:s.w, height:s.h, borderRadius:10, background:C.surface2, marginBottom:s.mb, animation:"pulse 1.5s ease-in-out infinite", animationDelay:`${i*0.1}s` }} />
+      ))}
     </div>
   );
 
@@ -694,19 +697,36 @@ export default function App() {
           {importMsg && <div style={{ fontSize:12, color:C.muted, textAlign:"center", marginBottom:16, padding:"8px 12px", background:C.surface, borderRadius:10 }}>{importMsg}</div>}
 
           <Card style={{ marginBottom:16, background:`linear-gradient(135deg, #111827 0%, #0d1f2d 100%)` }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: insight ? 12 : 0 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom: insight ? 12 : 0 }}>
               <div>
                 <Label>AI Earnings Debrief</Label>
-                <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>Powered by Claude</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
+                  <div style={{ fontSize:10, color:"#a78bfa", fontWeight:500 }}>✦ Powered by Claude</div>
+                  <div style={{ fontSize:9, color:C.muted, background:C.surface2, borderRadius:4, padding:"1px 5px" }}>claude-haiku-4-5</div>
+                </div>
+                <div style={{ fontSize:10, color:C.muted, marginTop:4 }}>
+                  Analyzes your {sessions.length} sessions — days, times, weather, cities & notes
+                </div>
               </div>
-              <Btn onClick={fetchInsight} style={{ fontSize:11, padding:"6px 12px", background: C.accentDim, border:`0.5px solid ${C.accent}`, color:C.accent }}>
+              <Btn onClick={fetchInsight} style={{ fontSize:11, padding:"6px 12px", background: C.accentDim, border:`0.5px solid ${C.accent}`, color:C.accent, flexShrink:0 }}>
                 {insightLoading ? "Analyzing..." : insight ? "Refresh" : "✦ Analyze"}
               </Btn>
             </div>
-            {insight && (
-              <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:C.text, lineHeight:1.7, marginTop:8, whiteSpace:"pre-wrap" }}>
-                {insight}
+            {insightLoading && (
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:12 }}>
+                {[100,85,92,70].map((w,i) => (
+                  <div key={i} style={{ height:12, borderRadius:6, background:C.surface2, width:`${w}%`, opacity:0.6, animation:"pulse 1.5s ease-in-out infinite", animationDelay:`${i*0.15}s` }} />
+                ))}
+                <style>{`@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.8} }`}</style>
               </div>
+            )}
+            {insight && !insightLoading && (
+              <>
+                <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:C.text, lineHeight:1.7, marginTop:8, whiteSpace:"pre-wrap" }}>
+                  {insight}
+                </div>
+                <div style={{ fontSize:10, color:C.muted, marginTop:10, textAlign:"right" }}>Based on {sessions.length} sessions</div>
+              </>
             )}
           </Card>
 
