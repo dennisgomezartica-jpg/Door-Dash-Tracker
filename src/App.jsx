@@ -1080,7 +1080,7 @@ export default function App() {
                           </div>
                           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, color:C.text }}>{e.home}</div>
                           {e.away && e.sport !== "Holiday" && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted }}>vs {e.away}</div>}
-                          <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted, marginTop:2 }}>{d.toLocaleDateString("en-US",{weekday:"long"})}{e.time ? ` · ${e.time}` : ""}</div>
+                          <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:C.muted, marginTop:2 }}>{d.toLocaleDateString("en-US",{weekday:"long"})}{e.time ? ` · ${fmtTime12(e.time)}` : ""}</div>
                         </div>
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
