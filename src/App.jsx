@@ -328,6 +328,8 @@ export default function App() {
   const [migrating, setMigrating] = useState(false);
   const [migrateMsg, setMigrateMsg] = useState("");
   const [censusData, setCensusData] = useState(null);
+  const [insight, setInsight] = useState("");
+  const [insightLoading, setInsightLoading] = useState(false);
   const undoTimer = useRef(null);
   const fileRef   = useRef();
   const blankForm = { date:new Date().toISOString().slice(0,10), startTime:"", endTime:"", miles:"", gross:"", timeWindow:"5PM–9PM", day:getDayName(new Date()), rained:false, gas:"", carMaint:"", notes:"", city:"Newnan GA", event_impact:"", holiday:"None" };
@@ -390,6 +392,22 @@ export default function App() {
     const tax=Math.max(0,annGross-annMiles*settings.mileageRate)*settings.taxRate;
     return { annualGross:annGross, annualNet:annGross-tax, basedOn:recent.length };
   }, [sessions, settings]);
+
+  async function fetchInsight() {
+    setInsightLoading(true);
+    try {
+      const res = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessions }),
+      });
+      const data = await res.json();
+      setInsight(data.insight || "No insight returned.");
+    } catch (err) {
+      setInsight("Could not load insights — check connection.");
+    }
+    setInsightLoading(false);
+  }
 
   async function fetchCensus() {
     if (censusData) return;
@@ -674,6 +692,23 @@ export default function App() {
             <input ref={fileRef} type="file" accept=".zip" style={{ display:"none" }} onChange={e=>handleZip(e.target.files[0])} />
           </div>
           {importMsg && <div style={{ fontSize:12, color:C.muted, textAlign:"center", marginBottom:16, padding:"8px 12px", background:C.surface, borderRadius:10 }}>{importMsg}</div>}
+
+          <Card style={{ marginBottom:16, background:`linear-gradient(135deg, #111827 0%, #0d1f2d 100%)` }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: insight ? 12 : 0 }}>
+              <div>
+                <Label>AI Earnings Debrief</Label>
+                <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>Powered by Claude</div>
+              </div>
+              <Btn onClick={fetchInsight} style={{ fontSize:11, padding:"6px 12px", background: C.accentDim, border:`0.5px solid ${C.accent}`, color:C.accent }}>
+                {insightLoading ? "Analyzing..." : insight ? "Refresh" : "✦ Analyze"}
+              </Btn>
+            </div>
+            {insight && (
+              <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:C.text, lineHeight:1.7, marginTop:8, whiteSpace:"pre-wrap" }}>
+                {insight}
+              </div>
+            )}
+          </Card>
 
           <SectionTitle>Recent Sessions</SectionTitle>
           {sortedSessions.slice(0,5).map(s => (
