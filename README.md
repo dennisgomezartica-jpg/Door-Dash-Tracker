@@ -16,6 +16,13 @@ I was tracking my DoorDash earnings in a spreadsheet and kept asking questions i
 
 ## Features
 
+### AI Earnings Debrief (Claude)
+- One-click debrief powered by **Claude Haiku** — analyzes all sessions and returns plain-English insights
+- Identifies best days, times, cities, and weather conditions based on actual earnings data
+- Flags underperforming shifts and gives 2-3 specific recommendations for next week
+- API key stays server-side (Railway) — never exposed to the browser
+- Animated loading skeleton while Claude processes
+
 ### Earnings Tracking
 - Log delivery sessions with gross earnings, hours, miles, gas expenses, city, weather, and notes
 - Smart time parser — type "5pm" or "9:30pm" instead of dropdowns
@@ -70,6 +77,7 @@ I was tracking my DoorDash earnings in a spreadsheet and kept asking questions i
 - **PostgreSQL** — Hosted on Railway, persistent cross-device session storage
 
 ### External APIs
+- **Anthropic Claude API** — AI earnings analysis (claude-haiku-4-5)
 - **TheSportsDB** — Atlanta/Georgia sports schedules
 - **ESPN API** — College sports and NBA playoffs
 - **Open-Meteo** — 14-day weather forecast (free, no key required)
@@ -149,10 +157,11 @@ python -m uvicorn main:app --reload
 ```
 
 **Environment variables required:**
-- `DATABASE_URL` — PostgreSQL connection string
-- `API_SECRET_KEY` — API key for session endpoint auth
-- `VITE_API_KEY` — Frontend API key (Vercel env var)
-- `VITE_CENSUS_KEY` — US Census Bureau API key
+- `DATABASE_URL` — PostgreSQL connection string (Railway)
+- `API_SECRET_KEY` — API key for session endpoint auth (Railway + Vercel)
+- `RAILWAY_API_URL` — Railway backend URL (Vercel, server-side only)
+- `ANTHROPIC_API_KEY` — Claude API key (Railway, server-side only)
+- `VITE_CENSUS_KEY` — US Census Bureau API key (Vercel)
 
 ---
 
